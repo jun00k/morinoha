@@ -26,6 +26,8 @@ let points = 0;
 
 let todos = [];
 
+const categories = ["家事", "畑", "鶏", "勉強", "運動", "事務", "活動"];
+
 loadData();
 render();
 
@@ -115,6 +117,27 @@ function completeTodo(index) {
   render();
 }
 
+function changeCategory(index, newCategory) {
+  const oldCategory = todos[index].category;
+  todos[index].category = newCategory;
+
+  message.textContent = `「${todos[index].text}」を${oldCategory}から${newCategory}に変更しました。`;
+
+  saveData();
+  render();
+}
+
+function deleteTodo(index) {
+  const deletedTodo = todos[index];
+
+  todos.splice(index, 1);
+
+  message.textContent = `「${deletedTodo.text}」を削除しました。（村への影響はありません）`;
+
+  saveData();
+  render();
+}
+
 function render() {
   todoList.innerHTML = "";
 
@@ -124,24 +147,50 @@ function render() {
     const span = document.createElement("span");
     span.textContent = todo.text;
 
-    const categorySpan = document.createElement("span");
-    categorySpan.textContent = `【${todo.category}】`;
-    categorySpan.className = "category-label";
+    const categoryChangeSelect = document.createElement("select");
+    categoryChangeSelect.className = "category-select";
+
+    categories.forEach(function(cat) {
+      const option = document.createElement("option");
+      option.value = cat;
+      option.textContent = cat;
+      if (cat === todo.category) {
+        option.selected = true;
+      }
+      categoryChangeSelect.appendChild(option);
+    });
+
+    categoryChangeSelect.addEventListener("change", function() {
+      changeCategory(index, categoryChangeSelect.value);
+    });
 
     const leftSide = document.createElement("div");
     leftSide.appendChild(span);
-    leftSide.appendChild(categorySpan);
+    leftSide.appendChild(categoryChangeSelect);
 
-    const button = document.createElement("button");
-    button.textContent = "完了";
-    button.className = "complete-button";
+    const completeButton = document.createElement("button");
+    completeButton.textContent = "完了";
+    completeButton.className = "complete-button";
 
-    button.addEventListener("click", function() {
+    completeButton.addEventListener("click", function() {
       completeTodo(index);
     });
 
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent = "削除";
+    deleteButton.className = "delete-button";
+
+    deleteButton.addEventListener("click", function() {
+      deleteTodo(index);
+    });
+
+    const buttonArea = document.createElement("div");
+    buttonArea.className = "button-area";
+    buttonArea.appendChild(completeButton);
+    buttonArea.appendChild(deleteButton);
+
     li.appendChild(leftSide);
-    li.appendChild(button);
+    li.appendChild(buttonArea);
     todoList.appendChild(li);
   });
 

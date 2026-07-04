@@ -74,6 +74,30 @@ li {
   background: #8f5030;
 }
 
+.delete-button {
+  background: #9a9a9a;
+}
+
+.delete-button:hover {
+  background: #777777;
+}
+
+.button-area {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.category-select {
+  font-size: 14px;
+  padding: 4px 6px;
+  margin-left: 8px;
+  color: #6b8f47;
+  border: 1px solid #d8c59a;
+  border-radius: 6px;
+  background: #fffaf0;
+}
+
 .village-area {
   margin-top: 30px;
 }
@@ -119,5 +143,10 @@ select {
 
   .status-box {
     font-size: 16px;
+  }
+
+  li {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }
