@@ -182,12 +182,17 @@ function addEventsAsTodos(events) {
 
     let title = event.summary || "（無題の予定）";
 
-    // 時刻つきの予定は「9:30 会議」のように先頭に時刻をつける
+    // 予定の先頭に「7/7 16:00」のように日付と時刻をつける（終日の予定は日付のみ）
     if (event.start && event.start.dateTime) {
       const startTime = new Date(event.start.dateTime);
+      const datePart = (startTime.getMonth() + 1) + "/" + startTime.getDate();
       const hours = String(startTime.getHours());
       const minutes = String(startTime.getMinutes()).padStart(2, "0");
-      title = hours + ":" + minutes + " " + title;
+      title = datePart + " " + hours + ":" + minutes + " " + title;
+    } else if (event.start && event.start.date) {
+      const startDate = new Date(event.start.date + "T00:00:00");
+      const datePart = (startDate.getMonth() + 1) + "/" + startDate.getDate();
+      title = datePart + " " + title;
     }
 
     const alreadyExists = todos.some(function(todo) {
