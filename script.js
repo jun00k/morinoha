@@ -38,7 +38,7 @@ loadData();
 render();
 
 addButton.addEventListener("click", addTodo);
-importCalendarButton.addEventListener("click", importTodayEvents);
+importCalendarButton.addEventListener("click", importWeekEvents);
 
 todoInput.addEventListener("keydown", function(event) {
   if (event.key === "Enter") {
@@ -124,7 +124,7 @@ function completeTodo(index) {
   render();
 }
 
-function importTodayEvents() {
+function importWeekEvents() {
   if (!window.google || !google.accounts) {
     message.textContent = "Google連携の準備中です。少し待ってからもう一度押してください。";
     return;
@@ -134,24 +134,25 @@ function importTodayEvents() {
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: "https://www.googleapis.com/auth/calendar.readonly",
-      callback: fetchTodayEvents
+      callback: fetchWeekEvents
     });
   }
 
   tokenClient.requestAccessToken();
 }
 
-function fetchTodayEvents(tokenResponse) {
+function fetchWeekEvents(tokenResponse) {
   if (!tokenResponse || !tokenResponse.access_token) {
     message.textContent = "Googleへのログインがキャンセルされました。";
     return;
   }
 
+  // 今日の0時から7日後の0時まで（今日を含めて1週間分）
   const start = new Date();
   start.setHours(0, 0, 0, 0);
 
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
 
   const url = "https://www.googleapis.com/calendar/v3/calendars/primary/events" +
     "?timeMin=" + encodeURIComponent(start.toISOString()) +
@@ -208,9 +209,9 @@ function addEventsAsTodos(events) {
   });
 
   if (addedCount === 0) {
-    message.textContent = "今日の予定で新しく追加するものはありませんでした。";
+    message.textContent = "1週間分の予定で新しく追加するものはありませんでした。";
   } else {
-    message.textContent = `今日の予定を${addedCount}件追加しました。カテゴリはプルダウンで調整してください。`;
+    message.textContent = `1週間分の予定を${addedCount}件追加しました。カテゴリはプルダウンで調整してください。`;
   }
 
   saveData();
