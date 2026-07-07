@@ -25,6 +25,7 @@ let development = 0;
 let points = 0;
 
 let todos = [];
+let importedTitles = [];
 
 const categories = ["家事", "畑", "鶏", "勉強", "運動", "事務", "活動"];
 
@@ -196,17 +197,29 @@ function addEventsAsTodos(events) {
       title = datePart + " " + title;
     }
 
+    // 一度取り込んだ予定（完了・削除済みを含む）は二度と取り込まない
+    if (importedTitles.includes(title)) {
+      return;
+    }
+
     const alreadyExists = todos.some(function(todo) {
       return todo.text === title;
     });
 
     if (alreadyExists) {
+      importedTitles.push(title);
       return;
     }
 
     todos.push({ text: title, category: "活動" });
+    importedTitles.push(title);
     addedCount += 1;
   });
+
+  // 取り込み済みの記録が増えすぎないよう、直近1000件だけ残す
+  if (importedTitles.length > 1000) {
+    importedTitles = importedTitles.slice(-1000);
+  }
 
   if (addedCount === 0) {
     message.textContent = "1週間分の予定で新しく追加するものはありませんでした。";
@@ -309,6 +322,7 @@ function render() {
 function saveData() {
   const data = {
     todos: todos,
+    importedTitles: importedTitles,
     villagers: villagers,
     comfort: comfort,
     harvest: harvest,
@@ -330,6 +344,7 @@ function loadData() {
     const data = JSON.parse(savedData);
 
     todos = data.todos || [];
+    importedTitles = data.importedTitles || [];
     villagers = data.villagers || 3;
     comfort = data.comfort || 0;
     harvest = data.harvest || 0;
