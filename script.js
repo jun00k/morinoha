@@ -11,6 +11,7 @@ const wisdomText = document.getElementById("wisdom");
 const staminaText = document.getElementById("stamina");
 const officePowerText = document.getElementById("officePower");
 const developmentText = document.getElementById("development");
+const careText = document.getElementById("care");
 const pointsText = document.getElementById("points");
 const message = document.getElementById("message");
 
@@ -22,12 +23,13 @@ let wisdom = 0;
 let stamina = 0;
 let officePower = 0;
 let development = 0;
+let care = 0;
 let points = 0;
 
 let todos = [];
 let importedTitles = [];
 
-const categories = ["家事", "畑", "鶏", "勉強", "運動", "事務", "活動"];
+const categories = ["家事", "畑", "鶏", "勉強", "運動", "事務", "活動", "介護"];
 
 // Google側の設定（OAuthクライアントID）が済んだら、ここに貼り替える
 const GOOGLE_CLIENT_ID = "1001429419806-vvgqe3kf699o96iqfbv09m9s2a8dk7gp.apps.googleusercontent.com";
@@ -112,6 +114,11 @@ function completeTodo(index) {
   if (completedTodo.category === "活動") {
     development += 2;
     rewardMessage = "村の発展が2増えました。";
+  }
+
+  if (completedTodo.category === "介護") {
+    care += 2;
+    rewardMessage = "思いやりが2増えました。";
   }
 
   if (points % 5 === 0) {
@@ -316,6 +323,7 @@ function render() {
   staminaText.textContent = stamina;
   officePowerText.textContent = officePower;
   developmentText.textContent = development;
+  careText.textContent = care;
   pointsText.textContent = points;
 }
 
@@ -331,6 +339,7 @@ function saveData() {
     stamina: stamina,
     officePower: officePower,
     development: development,
+    care: care,
     points: points
   };
 
@@ -353,6 +362,7 @@ function loadData() {
     stamina = data.stamina || 0;
     officePower = data.officePower || 0;
     development = data.development || 0;
+    care = data.care || 0;
     points = data.points || 0;
   }
 }
