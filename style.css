@@ -51,6 +51,19 @@ button:hover {
   background: #557238;
 }
 
+.calendar-row {
+  margin-bottom: 16px;
+}
+
+#importCalendarButton {
+  width: 100%;
+  background: #4a7fb5;
+}
+
+#importCalendarButton:hover {
+  background: #3a6493;
+}
+
 ul {
   list-style: none;
   padding: 0;

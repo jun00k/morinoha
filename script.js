@@ -28,10 +28,17 @@ let todos = [];
 
 const categories = ["家事", "畑", "鶏", "勉強", "運動", "事務", "活動"];
 
+// Google側の設定（OAuthクライアントID）が済んだら、ここに貼り替える
+const GOOGLE_CLIENT_ID = "1001429419806-vvgqe3kf699o96iqfbv09m9s2a8dk7gp.apps.googleusercontent.com";
+
+const importCalendarButton = document.getElementById("importCalendarButton");
+let tokenClient = null;
+
 loadData();
 render();
 
 addButton.addEventListener("click", addTodo);
+importCalendarButton.addEventListener("click", importTodayEvents);
 
 todoInput.addEventListener("keydown", function(event) {
   if (event.key === "Enter") {
@@ -112,6 +119,94 @@ function completeTodo(index) {
   }
 
   message.textContent = `「${completedTodo.text}」を完了。${rewardMessage}`;
+
+  saveData();
+  render();
+}
+
+function importTodayEvents() {
+  if (!window.google || !google.accounts) {
+    message.textContent = "Google連携の準備中です。少し待ってからもう一度押してください。";
+    return;
+  }
+
+  if (!tokenClient) {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: "https://www.googleapis.com/auth/calendar.readonly",
+      callback: fetchTodayEvents
+    });
+  }
+
+  tokenClient.requestAccessToken();
+}
+
+function fetchTodayEvents(tokenResponse) {
+  if (!tokenResponse || !tokenResponse.access_token) {
+    message.textContent = "Googleへのログインがキャンセルされました。";
+    return;
+  }
+
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+
+  const url = "https://www.googleapis.com/calendar/v3/calendars/primary/events" +
+    "?timeMin=" + encodeURIComponent(start.toISOString()) +
+    "&timeMax=" + encodeURIComponent(end.toISOString()) +
+    "&singleEvents=true&orderBy=startTime";
+
+  fetch(url, {
+    headers: { "Authorization": "Bearer " + tokenResponse.access_token }
+  })
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(data) {
+      addEventsAsTodos(data.items || []);
+    })
+    .catch(function() {
+      message.textContent = "予定の取得に失敗しました。通信状態を確認してください。";
+    });
+}
+
+function addEventsAsTodos(events) {
+  let addedCount = 0;
+
+  events.forEach(function(event) {
+    if (event.status === "cancelled") {
+      return;
+    }
+
+    let title = event.summary || "（無題の予定）";
+
+    // 時刻つきの予定は「9:30 会議」のように先頭に時刻をつける
+    if (event.start && event.start.dateTime) {
+      const startTime = new Date(event.start.dateTime);
+      const hours = String(startTime.getHours());
+      const minutes = String(startTime.getMinutes()).padStart(2, "0");
+      title = hours + ":" + minutes + " " + title;
+    }
+
+    const alreadyExists = todos.some(function(todo) {
+      return todo.text === title;
+    });
+
+    if (alreadyExists) {
+      return;
+    }
+
+    todos.push({ text: title, category: "活動" });
+    addedCount += 1;
+  });
+
+  if (addedCount === 0) {
+    message.textContent = "今日の予定で新しく追加するものはありませんでした。";
+  } else {
+    message.textContent = `今日の予定を${addedCount}件追加しました。カテゴリはプルダウンで調整してください。`;
+  }
 
   saveData();
   render();
