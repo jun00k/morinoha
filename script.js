@@ -162,8 +162,15 @@ function addTodo() {
   render();
 }
 
-function completeTodo(index) {
+function completeTodo(index, liElement) {
   const completedTodo = todos[index];
+
+  // 吹き出しを出す位置（完了ボタンを押した行のあたり）を覚えておく
+  let bubbleTop = 0;
+  const todoArea = document.querySelector(".todo-area");
+  if (liElement && todoArea) {
+    bubbleTop = liElement.getBoundingClientRect().top - todoArea.getBoundingClientRect().top;
+  }
 
   todos.splice(index, 1);
 
@@ -233,6 +240,37 @@ function completeTodo(index) {
 
   saveData();
   render();
+
+  if (villagerLine) {
+    showSpeechBubble(`💬${villagerLine}`, bubbleTop);
+  }
+}
+
+function showSpeechBubble(text, top) {
+  const todoArea = document.querySelector(".todo-area");
+  if (!todoArea) {
+    return;
+  }
+
+  // 前の吹き出しが残っていたら消す
+  const oldBubbles = document.querySelectorAll(".speech-bubble");
+  oldBubbles.forEach(function(bubble) {
+    bubble.remove();
+  });
+
+  const bubble = document.createElement("div");
+  bubble.className = "speech-bubble";
+  bubble.textContent = text;
+  bubble.style.top = top + "px";
+  todoArea.appendChild(bubble);
+
+  // 4秒たったら、ゆっくり消える
+  setTimeout(function() {
+    bubble.classList.add("fade-out");
+    setTimeout(function() {
+      bubble.remove();
+    }, 700);
+  }, 4000);
 }
 
 function importWeekEvents() {
@@ -470,7 +508,7 @@ function render() {
     completeButton.className = "complete-button";
 
     completeButton.addEventListener("click", function() {
-      completeTodo(index);
+      completeTodo(index, li);
     });
 
     const deleteButton = document.createElement("button");
