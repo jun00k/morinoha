@@ -148,7 +148,7 @@ function importWeekEvents() {
   if (!tokenClient) {
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
-      scope: "https://www.googleapis.com/auth/calendar.readonly",
+      scope: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly",
       callback: fetchWeekEvents
     });
   }
@@ -169,22 +169,94 @@ function fetchWeekEvents(tokenResponse) {
   const end = new Date(start);
   end.setDate(end.getDate() + 7);
 
-  const url = "https://www.googleapis.com/calendar/v3/calendars/primary/events" +
-    "?timeMin=" + encodeURIComponent(start.toISOString()) +
-    "&timeMax=" + encodeURIComponent(end.toISOString()) +
-    "&singleEvents=true&orderBy=startTime";
+  const accessToken = tokenResponse.access_token;
+  const headers = { "Authorization": "Bearer " + accessToken };
+  let tasksFailed = false;
 
-  fetch(url, {
-    headers: { "Authorization": "Bearer " + tokenResponse.access_token }
-  })
+  // 自分が作ったカレンダーすべて（0_junkawamoto、1_仕事など）から予定を集める
+  fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", { headers: headers })
     .then(function(response) {
       return response.json();
     })
     .then(function(data) {
-      addEventsAsTodos(data.items || []);
+      const myCalendars = (data.items || []).filter(function(cal) {
+        return cal.accessRole === "owner";
+      });
+
+      const requests = myCalendars.map(function(cal) {
+        const url = "https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(cal.id) + "/events" +
+          "?timeMin=" + encodeURIComponent(start.toISOString()) +
+          "&timeMax=" + encodeURIComponent(end.toISOString()) +
+          "&singleEvents=true&orderBy=startTime";
+
+        return fetch(url, { headers: headers })
+          .then(function(response) { return response.json(); })
+          .then(function(data) { return data.items || []; });
+      });
+
+      // GoogleのToDoリスト（タスク）も集める。失敗しても予定の取り込みは続ける
+      requests.push(
+        fetchGoogleTasks(headers, start, end).catch(function() {
+          tasksFailed = true;
+          return [];
+        })
+      );
+
+      return Promise.all(requests);
+    })
+    .then(function(lists) {
+      const allEvents = [].concat.apply([], lists);
+
+      // 日時順に並べる
+      allEvents.sort(function(a, b) {
+        const aTime = (a.start && (a.start.dateTime || a.start.date)) || "";
+        const bTime = (b.start && (b.start.dateTime || b.start.date)) || "";
+        return aTime < bTime ? -1 : 1;
+      });
+
+      addEventsAsTodos(allEvents);
+
+      if (tasksFailed) {
+        message.textContent += "（ToDoリストは取得できませんでした）";
+      }
     })
     .catch(function() {
       message.textContent = "予定の取得に失敗しました。通信状態を確認してください。";
+    });
+}
+
+function fetchGoogleTasks(headers, start, end) {
+  return fetch("https://tasks.googleapis.com/tasks/v1/users/@me/lists", { headers: headers })
+    .then(function(response) {
+      if (!response.ok) {
+        throw new Error("Tasks APIが使えません");
+      }
+      return response.json();
+    })
+    .then(function(data) {
+      const taskLists = data.items || [];
+
+      return Promise.all(taskLists.map(function(list) {
+        return fetch("https://tasks.googleapis.com/tasks/v1/lists/" + encodeURIComponent(list.id) + "/tasks?showCompleted=false", { headers: headers })
+          .then(function(response) { return response.json(); })
+          .then(function(data) { return data.items || []; });
+      }));
+    })
+    .then(function(lists) {
+      const tasks = [].concat.apply([], lists);
+
+      // 期限が1週間以内のタスクだけを、終日の予定と同じ形にして返す
+      return tasks
+        .filter(function(task) {
+          if (!task.title || !task.due) {
+            return false;
+          }
+          const due = new Date(task.due);
+          return due >= start && due < end;
+        })
+        .map(function(task) {
+          return { summary: task.title, start: { date: task.due.substring(0, 10) } };
+        });
     });
 }
 
