@@ -524,7 +524,28 @@ function deleteTodo(index) {
   render();
 }
 
+// ToDoの名前の先頭にある「7/16」や「7/16 9:30」から並べ替え用の数値を作る
+// 日付がないものは一番うしろ
+function getDateKey(text) {
+  const match = text.match(/^(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (!match) {
+    return Infinity;
+  }
+  const month = parseInt(match[1], 10);
+  const day = parseInt(match[2], 10);
+  const hours = match[3] ? parseInt(match[3], 10) : 0;
+  const minutes = match[4] ? parseInt(match[4], 10) : 0;
+  return ((month * 100 + day) * 100 + hours) * 100 + minutes;
+}
+
+function sortTodos() {
+  todos.sort(function(a, b) {
+    return getDateKey(a.text) - getDateKey(b.text);
+  });
+}
+
 function render() {
+  sortTodos();
   todoList.innerHTML = "";
 
   todos.forEach(function(todo, index) {
