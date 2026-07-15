@@ -126,6 +126,7 @@ const IMPORT_CALENDAR_NAMES = ["0_junkawamoto", "1_仕事"];
 
 const importCalendarButton = document.getElementById("importCalendarButton");
 let tokenClient = null;
+let consentRetried = false;
 
 loadData();
 render();
@@ -296,6 +297,19 @@ function fetchWeekEvents(tokenResponse) {
     return;
   }
 
+  // ToDoリストを読む許可がまだ付いていない場合は、一度だけ許可画面を出し直す
+  const hasTasksScope = google.accounts.oauth2.hasGrantedAllScopes(
+    tokenResponse,
+    "https://www.googleapis.com/auth/tasks.readonly"
+  );
+
+  if (!hasTasksScope && !consentRetried) {
+    consentRetried = true;
+    message.textContent = "ToDoリストを読む許可がまだありません。次のGoogleの画面で、項目にチェックを付けて許可してください。";
+    tokenClient.requestAccessToken({ prompt: "consent" });
+    return;
+  }
+
   // 今日の0時から7日後の0時まで（今日を含めて1週間分）
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -352,7 +366,7 @@ function fetchWeekEvents(tokenResponse) {
       addEventsAsTodos(allEvents);
 
       if (tasksFailed) {
-        message.textContent += "⚠️ ToDoリストは取得できませんでした。もう一度取り込みボタンを押し、Googleの許可画面で「ToDoリスト」にも許可（チェック）が付いているか確認してください。";
+        message.textContent += "⚠️ ToDoリストは取得できませんでした。許可を付けても続く場合は、Google CloudでGoogle Tasks APIが有効になっているか確認が必要です。";
       }
     })
     .catch(function() {
