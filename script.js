@@ -248,7 +248,7 @@ function completeTodo(index, liElement) {
   }
 }
 
-function showSpeechBubble(text, top) {
+function showSpeechBubble(text, top, duration) {
   const todoArea = document.querySelector(".todo-area");
   if (!todoArea) {
     return;
@@ -266,13 +266,23 @@ function showSpeechBubble(text, top) {
   bubble.style.top = top + "px";
   todoArea.appendChild(bubble);
 
-  // 4秒たったら、ゆっくり消える
+  // 時間がたったら、ゆっくり消える（村人のセリフは4秒、お知らせは長め）
   setTimeout(function() {
     bubble.classList.add("fade-out");
     setTimeout(function() {
       bubble.remove();
     }, 700);
-  }, 4000);
+  }, duration || 4000);
+}
+
+// 取り込みボタンのすぐ下に、お知らせの吹き出しを出す
+function showImportBubble(text) {
+  const todoArea = document.querySelector(".todo-area");
+  if (!todoArea || !importCalendarButton) {
+    return;
+  }
+  const top = importCalendarButton.getBoundingClientRect().bottom - todoArea.getBoundingClientRect().top + 8;
+  showSpeechBubble(text, top, 10000);
 }
 
 function importWeekEvents() {
@@ -303,6 +313,7 @@ function importWeekEvents() {
 function fetchWeekEvents(tokenResponse) {
   if (!tokenResponse || !tokenResponse.access_token) {
     message.textContent = "Googleへのログインがキャンセルされました。";
+    showImportBubble("Googleへのログインがキャンセルされました。");
     return;
   }
 
@@ -316,6 +327,7 @@ function fetchWeekEvents(tokenResponse) {
     consentRetried = true;
     needTasksConsent = true;
     message.textContent = "ToDoリストを読む許可がまだ付いていません。もう一度「📅 1週間分の予定を取り込む」ボタンを押すとGoogleの許可画面が出るので、項目にチェックを付けて「続行」してください。";
+    showImportBubble("🔑 ToDoリストを読む許可がまだ付いていません。もう一度上のボタンを押すと許可画面が出ます。チェックを付けて「続行」してください。");
     return;
   }
 
@@ -379,9 +391,13 @@ function fetchWeekEvents(tokenResponse) {
       if (tasksFailed) {
         message.textContent += "⚠️ ToDoリストは取得できませんでした" + (tasksErrorInfo ? `（${tasksErrorInfo}）` : "") + "。";
       }
+
+      // 取り込み結果をボタンのそばに吹き出しで知らせる
+      showImportBubble("📅 " + message.textContent);
     })
     .catch(function() {
       message.textContent = "予定の取得に失敗しました。通信状態を確認してください。";
+      showImportBubble("⚠️ 予定の取得に失敗しました。通信状態を確認してください。");
     });
 }
 
