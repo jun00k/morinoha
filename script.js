@@ -331,7 +331,7 @@ function fetchWeekEvents(tokenResponse) {
 
       // GoogleのToDoリスト（タスク）も集める。失敗しても予定の取り込みは続ける
       requests.push(
-        fetchGoogleTasks(headers, start, end).catch(function() {
+        fetchGoogleTasks(headers, end).catch(function() {
           tasksFailed = true;
           return [];
         })
@@ -342,17 +342,17 @@ function fetchWeekEvents(tokenResponse) {
     .then(function(lists) {
       const allEvents = [].concat.apply([], lists);
 
-      // 日時順に並べる
+      // 日時順に並べる（日付のないタスクは一番うしろ）
       allEvents.sort(function(a, b) {
-        const aTime = (a.start && (a.start.dateTime || a.start.date)) || "";
-        const bTime = (b.start && (b.start.dateTime || b.start.date)) || "";
+        const aTime = (a.start && (a.start.dateTime || a.start.date)) || "9999";
+        const bTime = (b.start && (b.start.dateTime || b.start.date)) || "9999";
         return aTime < bTime ? -1 : 1;
       });
 
       addEventsAsTodos(allEvents);
 
       if (tasksFailed) {
-        message.textContent += "（ToDoリストは取得できませんでした）";
+        message.textContent += "⚠️ ToDoリストは取得できませんでした。もう一度取り込みボタンを押し、Googleの許可画面で「ToDoリスト」にも許可（チェック）が付いているか確認してください。";
       }
     })
     .catch(function() {
@@ -360,7 +360,7 @@ function fetchWeekEvents(tokenResponse) {
     });
 }
 
-function fetchGoogleTasks(headers, start, end) {
+function fetchGoogleTasks(headers, end) {
   return fetch("https://tasks.googleapis.com/tasks/v1/users/@me/lists", { headers: headers })
     .then(function(response) {
       if (!response.ok) {
@@ -372,7 +372,7 @@ function fetchGoogleTasks(headers, start, end) {
       const taskLists = data.items || [];
 
       return Promise.all(taskLists.map(function(list) {
-        return fetch("https://tasks.googleapis.com/tasks/v1/lists/" + encodeURIComponent(list.id) + "/tasks?showCompleted=false", { headers: headers })
+        return fetch("https://tasks.googleapis.com/tasks/v1/lists/" + encodeURIComponent(list.id) + "/tasks?showCompleted=false&maxResults=100", { headers: headers })
           .then(function(response) { return response.json(); })
           .then(function(data) { return data.items || []; });
       }));
@@ -380,17 +380,27 @@ function fetchGoogleTasks(headers, start, end) {
     .then(function(lists) {
       const tasks = [].concat.apply([], lists);
 
-      // 期限が1週間以内のタスクだけを、終日の予定と同じ形にして返す
+      // 未完了のタスクは基本すべて取り込む（期限なし・期限切れも含む）。
+      // 期限が8日以上先のものだけ、まだ取り込まない
       return tasks
         .filter(function(task) {
-          if (!task.title || !task.due) {
+          if (!task.title) {
             return false;
           }
-          const due = new Date(task.due);
-          return due >= start && due < end;
+          if (task.due) {
+            const due = new Date(task.due);
+            if (due >= end) {
+              return false;
+            }
+          }
+          return true;
         })
         .map(function(task) {
-          return { summary: task.title, start: { date: task.due.substring(0, 10) } };
+          if (task.due) {
+            return { summary: task.title, start: { date: task.due.substring(0, 10) } };
+          }
+          // 期限なしのタスクは日付なしでそのまま取り込む
+          return { summary: task.title };
         });
     });
 }
