@@ -127,6 +127,7 @@ const IMPORT_CALENDAR_NAMES = ["0_junkawamoto", "1_仕事"];
 const importCalendarButton = document.getElementById("importCalendarButton");
 let tokenClient = null;
 let consentRetried = false;
+let needTasksConsent = false;
 
 loadData();
 render();
@@ -288,6 +289,14 @@ function importWeekEvents() {
     });
   }
 
+  // ToDoリストの許可が足りないと分かっている場合は、
+  // ボタンが押されたこのタイミングで許可画面を開く（自動で開くとブロックされるため）
+  if (needTasksConsent) {
+    needTasksConsent = false;
+    tokenClient.requestAccessToken({ prompt: "consent" });
+    return;
+  }
+
   tokenClient.requestAccessToken();
 }
 
@@ -305,8 +314,8 @@ function fetchWeekEvents(tokenResponse) {
 
   if (!hasTasksScope && !consentRetried) {
     consentRetried = true;
-    message.textContent = "ToDoリストを読む許可がまだありません。次のGoogleの画面で、項目にチェックを付けて許可してください。";
-    tokenClient.requestAccessToken({ prompt: "consent" });
+    needTasksConsent = true;
+    message.textContent = "ToDoリストを読む許可がまだ付いていません。もう一度「📅 1週間分の予定を取り込む」ボタンを押すとGoogleの許可画面が出るので、項目にチェックを付けて「続行」してください。";
     return;
   }
 
