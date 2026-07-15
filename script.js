@@ -329,6 +329,7 @@ function fetchWeekEvents(tokenResponse) {
   const accessToken = tokenResponse.access_token;
   const headers = { "Authorization": "Bearer " + accessToken };
   let tasksFailed = false;
+  let tasksErrorInfo = "";
 
   // IMPORT_CALENDAR_NAMES に書いたカレンダーだけから予定を集める
   fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", { headers: headers })
@@ -354,8 +355,9 @@ function fetchWeekEvents(tokenResponse) {
 
       // GoogleのToDoリスト（タスク）も集める。失敗しても予定の取り込みは続ける
       requests.push(
-        fetchGoogleTasks(headers, end).catch(function() {
+        fetchGoogleTasks(headers, end).catch(function(err) {
           tasksFailed = true;
+          tasksErrorInfo = err && err.message ? err.message : "";
           return [];
         })
       );
@@ -375,7 +377,7 @@ function fetchWeekEvents(tokenResponse) {
       addEventsAsTodos(allEvents);
 
       if (tasksFailed) {
-        message.textContent += "⚠️ ToDoリストは取得できませんでした。許可を付けても続く場合は、Google CloudでGoogle Tasks APIが有効になっているか確認が必要です。";
+        message.textContent += "⚠️ ToDoリストは取得できませんでした" + (tasksErrorInfo ? `（${tasksErrorInfo}）` : "") + "。";
       }
     })
     .catch(function() {
@@ -387,7 +389,7 @@ function fetchGoogleTasks(headers, end) {
   return fetch("https://tasks.googleapis.com/tasks/v1/users/@me/lists", { headers: headers })
     .then(function(response) {
       if (!response.ok) {
-        throw new Error("Tasks APIが使えません");
+        throw new Error("エラー番号 " + response.status);
       }
       return response.json();
     })
